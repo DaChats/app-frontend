@@ -364,12 +364,21 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem('friendid', data.id);
         localStorage.setItem('userid', userid);
 
+        const friendid = data.id;
+
         // sound notification
 
         setTimeout(() => {
+            const data = {
+                answer: false,
+                from: userid,
+                to: friendid
+            }
+        
+            socket.emit('answer', data);
+
             localStorage.removeItem('friendid');
             localStorage.removeItem('userid');
-
             closePopup();
         }, 30000);
     });
