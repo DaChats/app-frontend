@@ -5,6 +5,15 @@ let moreMessages = true
 let currentDate = new Date().toDateString();
 let lastMessageDate = null;
 
+const cookie = document.cookie;
+const token = cookie ? cookie.split('; ').find(row => row.startsWith('token=')).split('=')[1] : null;
+
+async function connectWS() {
+    socket = await io(`https://api.dachats.online?token=${token}`);
+}
+
+connectWS();
+
 const formatDateToPretty = (date) => {
     const d = new Date(date)
     const now = new Date()
@@ -22,6 +31,8 @@ const formatDateToPretty = (date) => {
         return `${diffInHours} hours ago`
     } else if (diffInDays < 7) {
         return `${daysOfWeek[d.getDay()]}`
+    } else if (diffInDays >= 7) {
+        return `A week ago`;
     } else {
         return d.toLocaleDateString()
     }
@@ -57,8 +68,6 @@ async function getChats() {
     const friends = await fetch(`https://api.dachats.online/api/friends?token=${token}`);
     const friendsData = await friends.json();
 
-    console.log(friendsData);
-
     if (friendsData.status != 200) {
         console.error(friendsData.message);
         return;
@@ -70,7 +79,6 @@ async function getChats() {
 
     const chats = await fetch(`https://api.dachats.online/api/chats?token=${token}`);
     const chatsData = await chats.json();
-    console.log(chatsData)
 
     if (chatsData.status != 200) {
         console.error(chatsData.message);
@@ -86,10 +94,6 @@ async function getChats() {
         const friendUsername = friendsList[i].username;
         const friendavatar = friendsList[i].avatar;
         const friendstatus = friendsList[i].status;
-
-        console.log(friendUsername);
-        console.log(friendavatar);
-        console.log(friendstatus);
 
         for (let i = 0; i < chatList.length; i++) {
             if (chatList[i].members.includes(friendid)) {
@@ -116,9 +120,6 @@ async function getChats() {
 getChats();
 
 async function getChat(chatid) {
-    console.log('getChat() called');
-    console.log(chatid);
-
     currentMessages = [];
     moreMessages = true;
 
@@ -138,8 +139,6 @@ async function getChat(chatid) {
     const chat = await fetch(`https://api.dachats.online/api/chat?token=${token}&chatid=${chatid}&limit=20`);
     const chatData = await chat.json();
 
-    console.log(chatData);
-
     if (chatData.status != 200) {
         console.error(chatData.message);
         return;
@@ -147,22 +146,19 @@ async function getChat(chatid) {
 
     const chatMessages = chatData.data.messages;
 
-    console.log(chatMessages);
-
     const messagesContainer = document.getElementById('messages');
     const userinfo2 = document.getElementById('user2-info');
+    const chatcontainer = document.getElementById('chat-container');
 
     let html = '';
 
     const currentUser = chatData.data.members[0];
     const friend = chatData.data.members[1];
 
-    console.log(currentUser);
-    console.log(friend);
-
     userinfo2.innerHTML = ""
 
     userinfo2.innerHTML = `
+    <div class="chat-header">
         <div class="chat-user" id="chat-user">
             <img src="https://api.dachats.online/api/files?filename=${friend.avatar}" alt="user" class="chat-img">
             <p class="chat-name">${friend.username}</p>
@@ -170,6 +166,7 @@ async function getChat(chatid) {
         <button class="call-btn" type="button" onclick="voiceCall('${friend.id}', '${userid}')">
             <img src="../images/call.svg" alt="call" class="call-img">
         </button>
+    </div>
     `;
 
     messagesContainer.innerHTML = '';
@@ -230,6 +227,11 @@ async function getChat(chatid) {
 let pressed = false;
 
 async function sendMessage() {
+    if (!currentChatId) {
+        console.warn('No chat selected');
+        return;
+    }
+
     const usermessage = document.getElementById('message-input').value;
 
     if (!usermessage) {
@@ -273,8 +275,6 @@ async function sendMessage() {
     const user = await fetch(`https://api.dachats.online/api/user/${from}`);
     const userData = await user.json();
 
-    console.log(userData)
-
     if (userData.status != 200) {
         console.error(userData.message);
         return;
@@ -313,22 +313,41 @@ async function sendMessage() {
     scrollToBottom();
 }
 
-const cookie = document.cookie;
-const token = cookie ? cookie.split('; ').find(row => row.startsWith('token=')).split('=')[1] : null;
-
-async function connectWS() {
-    socket = await io(`https://api.dachats.online?token=${token}`);
-}
-
-connectWS();
-
 document.addEventListener('DOMContentLoaded', function () {
+    function requestNotificationPermission() {
+        if (Notification.permission === "default") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("Notification permission granted.");
+                } else {
+                    console.log("Notification permission denied.");
+                }
+            });
+        } else if (Notification.permission === "granted") {
+            console.log("Notification permission already granted.");
+        } else {
+            console.log("Notification permission denied.");
+        }
+    }
+
+    function requestMediaPermissions() {
+        navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+            .then(stream => {
+                console.log("Microphone and camera permission granted.");
+            })
+            .catch(error => {
+                console.error("Microphone and camera permission denied or error occurred:", error);
+            });
+    }
+
+    requestNotificationPermission();
+    requestMediaPermissions();
+
     socket.on('connect', () => {
         console.log('Connected to WS server.');
     });
 
     socket.on('notify', (data) => {
-        console.log('Received notify:', data);
 
         Notification.requestPermission().then(async function (result) {
             console.log(result);
@@ -359,18 +378,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     })
 
-    socket.on('answer', async (data) => {
-        console.log('Received answer:', data);
-
-        if (data.answer) {
-            console.log('Call accepted');
-            alert('Call accepted')
-        } else {
-            console.log('Call rejected');
-            alert('Call rejected')
-        }
-    });
-
     socket.on('call', async (data) => {
         console.log('Received call:', data);
 
@@ -385,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const cookie = document.cookie;
         const userid = cookie ? cookie.split('; ').find(row => row.startsWith('userid=')).split('=')[1] : null;
 
-        localStorage.setItem('friendid', data.id);
+        localStorage.setItem('friendid', data.from);
         localStorage.setItem('userid', userid);
 
         // sound notification
@@ -399,7 +406,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     socket.on('message', async (data) => {
-        console.log('Received message:', data);
 
         if (data.chatid !== currentChatId) {
             console.log('segg2');
@@ -409,12 +415,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const cookie = document.cookie;
         const userid = cookie ? cookie.split('; ').find(row => row.startsWith('userid=')).split('=')[1] : null;
 
-        console.log(data.from, data.usermessage, data.time);
-
         const user = await fetch(`https://api.dachats.online/api/user/${data.from}`);
         const userData = await user.json();
-
-        console.log(userData);
 
         if (userData.status != 200) {
             console.error(userData.message);
@@ -459,11 +461,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (isAtBottom) {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
-    });
-
-    socket.io.on('ping', () => {
-        console.log('Ping');
-    });
+    })
 });
 
 async function fetchMoreMessages() {
@@ -491,7 +489,6 @@ document.querySelector('#messages').addEventListener('scroll', async function ()
 
     if (messagesContainer.scrollTop === 0 && moreMessages && !isFetchingMessages) {
         isFetchingMessages = true;
-        console.log('Fetching more messages...');
 
         const chatData = await fetchMoreMessages();
 
@@ -501,8 +498,6 @@ document.querySelector('#messages').addEventListener('scroll', async function ()
         }
 
         const chatMessages = chatData.messages;
-
-        console.log('Fetched messages:', chatMessages);
 
         const currentUser = chatData.members[0];
         const friend = chatData.members[1];
@@ -558,7 +553,7 @@ function scrollToBottom() {
 
 async function voiceCall(friendid, userid) {
     console.log('Calling friend:', friendid);
-    socket.emit('call', { from: userid, to: friendid });
+    window.location.href = '/dashboard/call.html?callTo=' + friendid;
 }
 
 function closePopup() {
@@ -570,22 +565,12 @@ function acceptCall() {
     console.log('Call accepted');
 
     const friendid = localStorage.getItem('friendid');
-    const userid = localStorage.getItem('userid');
 
-    console.log(friendid, userid);
+    // redirect to call page (not implemented yet) end add callId to the url
+    window.location.href = `/dashboard/call.html?callFrom=${friendid}`
+    // The callId is a random generated string that is used to identify the call (peer)
 
-    localStorage.removeItem('friendid');
-    localStorage.removeItem('userid');
-
-    const data = {
-        answer: true,
-        from: userid,
-        to: friendid
-    }
-
-    socket.emit('answer', data);
-
-    alert('Call accepted')
+    alert('Call accepted');
     closePopup();
 }
 
@@ -600,12 +585,5 @@ function rejectCall() {
     localStorage.removeItem('friendid');
     localStorage.removeItem('userid');
 
-    const data = {
-        answer: false,
-        from: userid,
-        to: friendid
-    }
-
-    socket.emit('answer', data);
     closePopup();
 }

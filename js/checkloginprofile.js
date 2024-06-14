@@ -1,9 +1,7 @@
-console.log('checklogin.js loaded');
+
 async function checklogin() {
-    console.log('checklogin() called');
     const cookie = document.cookie;
-    const token = cookie ? cookie.split('; ').find(row => row.startsWith('token=')).split('=')[1] : null;
-    ;
+    const token = cookie ? cookie.split('; ').find(row => row.startsWith('token=')).split('=')[1] : null;;
     if (token) {
         const getUserData = await fetch(`https://api.dachats.online/api/auth/login?token=${token}`, {
             method: 'GET',
@@ -12,7 +10,6 @@ async function checklogin() {
             }
         })
         const userData = await getUserData.json();
-        console.log(userData);
         if (!getUserData.ok) {
             alert(userData.message);
             window.location.href = '../login.html';

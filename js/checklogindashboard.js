@@ -1,11 +1,6 @@
-console.log('checklogin.js loaded');
-
 async function checklogin() {
-    console.log('checklogin() called');
-
     const cookie = document.cookie;
-    const token = cookie ? cookie.split('; ').find(row => row.startsWith('token=')).split('=')[1] : null;
-    ;
+    const token = cookie ? cookie.split('; ').find(row => row.startsWith('token=')).split('=')[1] : null;;
 
     if (token) {
         setTimeout(async () => {
@@ -17,7 +12,6 @@ async function checklogin() {
             })
 
             const userData = await getUserData.json();
-            console.log(userData);
 
             if (!getUserData.ok) {
                 alert(userData.message);
@@ -29,9 +23,6 @@ async function checklogin() {
             const username = await userData.data.name;
             const avatar = await userData.data.avatar;
             status = await userData.data.status;
-
-            console.log(username);
-            console.log(avatar);
 
             const div = document.getElementById('user-info');
             div.innerHTML = `

@@ -32,7 +32,6 @@ async function verify() {
         }
 
         const responseData = await verifyResponse.json();
-        console.log(responseData);
 
         if (responseData.status == 200) {
             const Mainap = new Date();

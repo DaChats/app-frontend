@@ -1,7 +1,4 @@
-console.log('checklogin.js loaded');
-
 async function checklogin() {
-    console.log('checklogin() called');
     const div = document.getElementById('login');
 
     const cookie = document.cookie;
@@ -17,7 +14,6 @@ async function checklogin() {
         })
 
         const userData = await getUserData.json();
-        console.log(userData);
 
         if (!userData) {
             alert(userData.message);
@@ -36,9 +32,6 @@ async function checklogin() {
 
         const username = await userData.data.name;
         const avatar = await userData.data.avatar;
-
-        console.log(username);
-        console.log(avatar);
 
 
         div.innerHTML = `
